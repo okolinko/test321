@@ -20,9 +20,7 @@ class SummaryInfoController extends ApiController
     {
         $data = Yii::$app->getRequest()->post();
         $data['filters'] = array_filter($data['filters'] ?? []);
-
         $manager = Yii::$container->get('party.payment.manager');
-
         // Валідація operation_type
         $type = $data['filters']['operation_type'] ?? 'monetary_contributions';
         $typeMap = [
@@ -69,6 +67,7 @@ class SummaryInfoController extends ApiController
         // Зведена інформація
         unset($data['order']);
         $data['pager']['size'] = 10000;
+
         $summary = $manager->getSummaryInfo($data, false, true) ?? [
             'payment_type' => $this->getSummaryTypeName($type),
             'count' => $count,
@@ -76,11 +75,9 @@ class SummaryInfoController extends ApiController
             'refund_amount' => 0,
         ];
 
-        $summary['payment_type'] = $this->getSummaryTypeName($type);
-        $summary['payment_amount'] = !empty($summary['payment_amount']) ? number_format((float)$summary['payment_amount'], 2, ',', ' ') : '0,00';
-        $summary['refund_amount'] = !empty($summary['refund_amount']) ? number_format((float)$summary['refund_amount'], 2, ',', ' ') : '0,00';
-        $summary['count'] = $summary['count'] ?? $count;
-
+        $summary['payment_amount'] = !empty($summary['payment_amount']) ? number_format((float) $summary['payment_amount'], 2, ',', ' ') : '0,00';
+        $summary['refund_amount'] = !empty($summary['refund_amount']) ? number_format((float) $summary['refund_amount'], 2, ',', ' ') : '0,00';
+        
         $response = [
             'results' => [
                 'list' => $list,
@@ -89,7 +86,6 @@ class SummaryInfoController extends ApiController
             ],
         ];
 
-        Yii::debug('Response data: ' . json_encode($response), __METHOD__);
         return $response;
     }
 
@@ -115,7 +111,6 @@ class SummaryInfoController extends ApiController
             'transfer_expenses' => '4_4',
         ];
         if (!isset($typeMap[$type])) {
-            Yii::error('Invalid operation_type for download: ' . $type, __METHOD__);
             return [
                 'code' => 1,
                 'errors' => ['Невірний тип операції'],
