@@ -33,8 +33,10 @@ class SummaryInfoController extends ApiController
             'return_expenses' => '4_3',
             'transfer_expenses' => '4_4',
         ];
+
         if (!isset($typeMap[$type])) {
             Yii::error('Invalid operation_type: ' . $type, __METHOD__);
+
             return [
                 'code' => 1,
                 'errors' => ['Невірний тип операції'],
@@ -43,7 +45,7 @@ class SummaryInfoController extends ApiController
 
         $data['filters']['group_code'] = $typeMap[$type];
         unset($data['filters']['operation_type']);
-
+        unset($data['filters']['pager']);
         // Обробка числових значень
         $numericFields = ['payment_amount', 'refund_amount', 'refund_budget_amount'];
         foreach ($numericFields as $field) {
@@ -67,7 +69,6 @@ class SummaryInfoController extends ApiController
         // Зведена інформація
         unset($data['order']);
         $data['pager']['size'] = 10000;
-
         $summary = $manager->getSummaryInfo($data, false, true) ?? [
             'payment_type' => $this->getSummaryTypeName($type),
             'count' => $count,
@@ -75,9 +76,10 @@ class SummaryInfoController extends ApiController
             'refund_amount' => 0,
         ];
 
+        $summary['payment_type'] = $this->getSummaryTypeName($type);
         $summary['payment_amount'] = !empty($summary['payment_amount']) ? number_format((float) $summary['payment_amount'], 2, ',', ' ') : '0,00';
         $summary['refund_amount'] = !empty($summary['refund_amount']) ? number_format((float) $summary['refund_amount'], 2, ',', ' ') : '0,00';
-        
+
         $response = [
             'results' => [
                 'list' => $list,
