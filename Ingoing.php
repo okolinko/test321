@@ -3,14 +3,9 @@
 use yii\helpers\Html;
 
 App\Assets\DataTableVueAssets::register($this);
-
 Yii::$app->params['pageTitle'] = 'Зведена інформація - Внески';
 Yii::$app->params['pageSubtitle'] = 'Перегляд внесків';
 Yii::$app->params['pageHeader'] = Yii::$app->params['pageSubtitle'];
-Yii::$app->params['breadCrumbs'] = [
-    ['label' => 'Зведена інформація', 'url' => ['/summary-info/ingoing']],
-    ['label' => 'Внески'],
-];
 ?>
 
 <div class="container">
@@ -25,22 +20,23 @@ Yii::$app->params['breadCrumbs'] = [
             </div>
         </div>
     </div>
-
     <!-- Зведена інформація -->
     <div class="mb-10">
         <h4 class="mb-0 p-4 bg-dark-gray size-xl">Загальна інформація</h4>
         <table id="summary_info_table" class="mb-8 table table-p-md table-sm">
             <colgroup>
-                <col width="35%" />
-                <col width="19%" />
-                <col width="23%" />
-                <col width="23%" />
+                <col width="20%" />
+                <col width="20%" />
+                <col width="20%" />
+                <col width="20%" />
+                <col width="20%" />
             </colgroup>
             <thead>
             <tr>
                 <th>Тип внеску</th>
                 <th>Кількість</th>
-                <th>Сума надходжень</th>
+                <th>Сума платежу</th>
+                <th>Сума повернень</th>
                 <th>Сума на даній сторінці</th>
             </tr>
             </thead>
@@ -49,6 +45,7 @@ Yii::$app->params['breadCrumbs'] = [
                 <td name="summary_info_type" class="text-center">--</td>
                 <td name="summary_info_qty" class="text-center">--</td>
                 <td name="summary_info_summ" class="text-center">0,00</td>
+                <td name="refund_info_summ" class="text-center">0,00</td>
                 <td name="current_summary_info_summ" class="text-center">0,00</td>
             </tr>
             </tbody>
@@ -57,14 +54,28 @@ Yii::$app->params['breadCrumbs'] = [
 
     <!-- Фільтр operation_type -->
     <div class="mb-10">
-        <div class="filter-group">
-            <label for="operation_type">Тип внеску:</label>
-            <select id="operation_type" class="form-control">
-                <option value="monetary_contributions" selected>Грошові внески</option>
-                <option value="other_contributions">Інші внески</option>
-                <option value="state_funding">Кошти державного фінансування</option>
-                <option value="other_incomes">Інші надходження</option>
-            </select>
+        <div class="flex">
+            <div class="flex-size-6 btn-set">
+                <div class="filter-group table-controls">
+                    <label class="block mb-2"  for="operation_type">Тип внеску:</label>
+                    <select id="operation_type" class="form-control">
+                        <option value="monetary_contributions" selected>Грошові внески</option>
+                        <option value="other_contributions">Інші внески</option>
+                        <option value="state_funding" >Кошти державного фінансування</option>
+                        <option value="other_incomes">Інші надходження</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex-size-6 btn-set">
+                <div class="filter-group table-controls">
+                    <label class="block mb-2" for="office-type-select">Тип осередку:</label>
+                    <select id="office-type-select" class="form-control">
+                        <option class="p-select-label" value="Центральний офіс" >Центральний офіс</option>
+                        <option class="p-select-label" value="Всі регіональні осередки" >Всі регіональні осередки</option>
+                        <option class="p-select-label" value="Центральний офіс + Всі регіональні осередки" selected>Центральний офіс + Всі регіональні осередки</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -72,6 +83,7 @@ Yii::$app->params['breadCrumbs'] = [
     <div id="error_messages"></div>
     <div id="datatable"></div>
 </div>
+<!--{ name: 'party_type', title: 'Тип офісу', visible: false, sortable: false, value: (data) => data.party.is_offce ? 'регіональний' : 'центральний' },-->
 
 <script>
 
@@ -90,7 +102,7 @@ Yii::$app->params['breadCrumbs'] = [
             { name: 'receiver_bank_name', title: 'Назва банку', visible: true, sortable: true },
             { name: 'receiver_account_iban', title: 'Номер рахунку', visible: true, sortable: true },
             { name: 'payment_operation_date', title: 'Дата внеску', visible: true, sortable: true },
-            { name: 'payment_amount',  title: 'Сума надходження', visible: true, sortable: true},
+            { name: 'payment_amount',  title: 'Сума платежу', visible: true, sortable: true},
         ],
         other_contributions: [
             { name: 'party_name', title: 'Найменування політичної партії', visible: true, sortable: true },
@@ -104,7 +116,7 @@ Yii::$app->params['breadCrumbs'] = [
             { name: 'payer_birthday', title: 'Дата народження', visible: true, sortable: true },
             { name: 'payer_address', title: 'Місце проживання', visible: true, sortable: true },
             { name: 'payment_operation_date', title: 'Дата внеску', visible: true, sortable: true },
-            { name: 'payment_amount', title: 'Сума надходження', visible: true, sortable: true },
+            { name: 'payment_amount', title: 'Сума платежу', visible: true, sortable: true },
         ],
         state_funding: [
             { name: 'party_name', title: 'Найменування політичної партії', visible: true, sortable: true },
@@ -115,7 +127,8 @@ Yii::$app->params['breadCrumbs'] = [
             { name: 'receiver_bank_name', title: 'Назва банку', visible: true, sortable: true },
             { name: 'receiver_account_iban', title: 'Номер рахунку', visible: true, sortable: true },
             { name: 'payment_operation_date', title: 'Дата надходження', visible: true, sortable: true },
-            { name: 'payment_amount', title: 'Сума надходження', visible: true, sortable: true },
+            { name: 'refund_amount', title: 'Сума повернення', visible: true, sortable: true },
+            { name: 'payment_amount', title: 'Сума платежу', visible: true, sortable: true },
             { name: 'refund_amount', title: 'Сума повернення', visible: true, sortable: true },
         ],
         other_incomes: [
@@ -130,91 +143,103 @@ Yii::$app->params['breadCrumbs'] = [
             { name: 'payment_operation_date', title: 'Дата надходження', visible: true, sortable: true },
             { name: 'receiver_bank_name', title: 'Назва банку', visible: true, sortable: true },
             { name: 'receiver_account_iban', title: 'Номер рахунку', visible: true, sortable: true },
-            { name: 'payment_amount', title: 'Сума надходження', visible: true, sortable: true },
+            { name: 'payment_amount', title: 'Сума платежу', visible: true, sortable: true },
         ],
     };
 
     // Конфігурація фільтрів
     const tableFilters = {
         monetary_contributions: [
+            // { name: 'office_type', type: 'string', title: 'тип', visible: false },
             { name: 'party_name', type: 'string', title: 'Найменування політичної партії', visible: true },
             { name: 'party_code', type: 'string', title: 'ЄДРПОУ політичної партії', visible: true },
             { name: 'office_name', type: 'string', title: 'Найменування регіонального осередку', visible: true },
             { name: 'office_code', type: 'string', title: 'ЄДРПОУ регіонального осередку', visible: true },
             { name: 'payer_name', type: 'string', title: 'ПІБ/Найменування юридичної особи', visible: true },
             { name: 'payer_code', type: 'string', title: 'РНОКПП/ЄДРПОУ', visible: true },
-            { name: 'payment_amount', type: 'string', title: 'Сума внеску', visible: true },
+            { name: 'payment_amount', type: 'string', title: 'Сума платежу', visible: true },
             { name: 'payment_operation_date', type: 'date_range', title: 'Дата надання внеску', visible: true },
+            { name: 'receiver_account_iban', type: 'string', title: 'Номер рахунку', visible: true },
         ],
         other_contributions: [
+            // { name: 'office_type', type: 'string', title: 'тип', visible: false },
             { name: 'party_name', type: 'string', title: 'Найменування політичної партії', visible: true },
             { name: 'party_code', type: 'string', title: 'ЄДРПОУ політичної партії', visible: true },
             { name: 'office_name', type: 'string', title: 'Найменування регіонального осередку', visible: true },
             { name: 'office_code', type: 'string', title: 'ЄДРПОУ регіонального осередку', visible: true },
             { name: 'payer_name', type: 'string', title: 'ПІБ/Найменування юридичної особи', visible: true },
             { name: 'payer_code', type: 'string', title: 'РНОКПП/ЄДРПОУ', visible: true },
-            { name: 'payment_amount', type: 'string', title: 'Вартість внеску', visible: true },
+            { name: 'payment_amount', type: 'string', title: 'Сума платежу', visible: true },
             { name: 'payment_operation_date', type: 'date_range', title: 'Дата надання внеску', visible: true },
         ],
         state_funding: [
+            // { name: 'office_type', type: 'string', title: 'тип', visible: false },
             { name: 'party_name', type: 'string', title: 'Найменування політичної партії', visible: true },
             { name: 'party_code', type: 'string', title: 'ЄДРПОУ політичної партії', visible: true },
             { name: 'office_name', type: 'string', title: 'Найменування регіонального осередку', visible: true },
             { name: 'office_code', type: 'string', title: 'ЄДРПОУ регіонального осередку', visible: true },
-            { name: 'payment_amount', type: 'string', title: 'Сума надходження', visible: true },
+            { name: 'payment_amount', type: 'string', title: 'Сума платежу', visible: true },
             { name: 'payment_operation_date', type: 'date_range', title: 'Дата надходження', visible: true },
         ],
         other_incomes: [
+            // { name: 'office_type', type: 'string', title: 'тип', visible: false },
             { name: 'party_name', type: 'string', title: 'Найменування політичної партії', visible: true },
             { name: 'party_code', type: 'string', title: 'ЄДРПОУ політичної партії', visible: true },
             { name: 'office_name', type: 'string', title: 'Найменування регіонального осередку', visible: true },
             { name: 'office_code', type: 'string', title: 'ЄДРПОУ регіонального осередку', visible: true },
             { name: 'payer_name', type: 'string', title: 'ПІБ/Найменування юридичної особи', visible: true },
             { name: 'payer_code', type: 'string', title: 'РНОКПП/ЄДРПОУ', visible: true },
-            { name: 'payment_amount', type: 'string', title: 'Сума надходження', visible: true },
+            { name: 'payment_amount', type: 'string', title: 'Сума платежу', visible: true },
             { name: 'payment_operation_date', type: 'date_range', title: 'Дата надходження', visible: true },
         ],
     };
 
     // Ініціалізація
-    const init = () => {
+    const init = (currentOperationType) => {
+        // console.log('init start: ', currentOperationType);
+        // Очищення кешу
+        localStorage.removeItem('summary_info_ingoing');
+        localStorage.removeItem('summary_info_outgoing');
         // console.log('Starting initialization...');
         // Перевірка наявності #datatable
-        const datatableElement = document.getElementById('datatable');
+        let datatableElement = document.getElementById('datatable');
         if (!datatableElement) {
             const errorDiv = document.getElementById('error_messages');
             if (errorDiv) {
                 errorDiv.innerHTML = '<div class="alert alert-danger">Помилка: елемент #datatable не знайдено</div>';
             }
-            return;
         }
 
+        if (!currentOperationType) {
+            currentOperationType = 'monetary_contributions';
+        }
+        // console.log('init start set: ', currentOperationType);
         // Дебагінг скриптів
         // console.log('Scripts loaded:', Array.from(document.getElementsByTagName('script')).map(s => s.src));
 
-        // Очищення кешу
-        localStorage.removeItem('summary_info_ingoing');
+        // let currentOperationType = 'monetary_contributions';
+        let officeTypeSelect = document.getElementById('office-type-select');
+        const getOfficeType = () => officeTypeSelect.value;
 
-        let currentOperationType = 'monetary_contributions';
-
-        const getConfig = () => ({
+        const getConfig = () => (
+            {
             requestUrl: '/api/v1/party/summary-info/list',
-            downloadUrl: '/api/v1/party/summary-info/download',
             storageKey: 'summary_info_ingoing',
             columns: tableColumns[currentOperationType],
             filters: tableFilters[currentOperationType],
-            order: { payment_operation_date: 'desc' },
+            order: { party_name: 'desc' },
             requestParams: {
                 group_code: currentOperationType,
                 operation_type: currentOperationType,
                 pager: { page: 1, size: 20 },
-                // group_code: currentOperationType === 'state_funding' ? '3_3' : (currentOperationType === 'monetary_contributions' ? '3_1' : '3_2'),
+                office_type: getOfficeType(),
             },
 
             showDownload: true,
         });
 
-        let config = getConfig();
+
+        const config = getConfig();
         // console.log('Initial config:', config);
 
         const updateSummary = (summary) => {
@@ -229,6 +254,7 @@ Yii::$app->params['breadCrumbs'] = [
                 row.querySelector('[name="summary_info_type"]').textContent = summary?.payment_type || 'Немає даних';
                 row.querySelector('[name="summary_info_qty"]').textContent = summary?.count || '0';
                 row.querySelector('[name="summary_info_summ"]').textContent = summary?.payment_amount || '0,00';
+                row.querySelector('[name="refund_info_summ"]').textContent = summary?.refund_amount || '0,00';
             } else {
                 // console.error('Summary table row not found');
             }
@@ -250,7 +276,7 @@ Yii::$app->params['breadCrumbs'] = [
 
             headers.forEach((th, index) => {
                 const title = th.querySelector('.p-datatable-column-title');
-                if (title && title.textContent.trim() === 'Сума надходження') {
+                if (title && title.textContent.trim() === 'Сума платежу') {
                     amountIndex = index;
                 }
             });
@@ -277,7 +303,7 @@ Yii::$app->params['breadCrumbs'] = [
                     }
                 }
             });
-            const rowSumary = document.querySelector('#summary_info_table tbody tr');
+            let rowSumary = document.querySelector('#summary_info_table tbody tr');
             const formatter = new Intl.NumberFormat('uk-UA', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
@@ -287,8 +313,10 @@ Yii::$app->params['breadCrumbs'] = [
         };
 
         document.addEventListener('datatable:dataLoaded', (e) => {
-            // console.log('Data loaded view!!!!!:', e.detail);
-            const data = e.detail;
+            // Очищення кешу
+            localStorage.removeItem('summary_info_ingoing');
+            localStorage.removeItem('summary_info_outgoing');
+            let data = e.detail;
             if (data?.results?.summary) {
                 // console.log('Summary received:', data.results.summary);
                 updateSummary(data.results.summary);
@@ -300,7 +328,7 @@ Yii::$app->params['breadCrumbs'] = [
                     payment_amount: '0,00',
                 });
             }
-
+            // document.dispatchEvent(new CustomEvent('datatable:filterUpdate', { detail: e } ));
             // Виклик парсингу після оновлення таблиці
             setTimeout(parsePaymentAmounts, 500); // Затримка для рендерингу
 
@@ -308,14 +336,18 @@ Yii::$app->params['breadCrumbs'] = [
 
         // Обробка зміни operation_type
         const operationTypeSelect = document.getElementById('operation_type');
+        // console.log('tyt');
         operationTypeSelect.addEventListener('change', (e) => {
+            localStorage.removeItem('summary_info_ingoing');
             currentOperationType = e.target.value;
+            // console.log('tyt e:', e.target.value);
             // console.log('Switching to operation_type:', currentOperationType);
-            config = getConfig();
+            let config = getConfig();
             // console.log('New config:', config);
             document.dispatchEvent(new CustomEvent('datatable:setConfig', { detail: config }));
-            document.dispatchEvent(new CustomEvent('datatable:reload'));
-            setTimeout(parsePaymentAmounts, 500); // Затримка для рендерингу
+            // document.dispatchEvent(new CustomEvent('datatable:reload'));
+
+            // setTimeout(parsePaymentAmounts, 500); // Затримка для рендерингу
         });
 
         // Обробка помилок
@@ -334,18 +366,23 @@ Yii::$app->params['breadCrumbs'] = [
 
         document.addEventListener('datatable:filterUpdate', (e) => {
             // console.log('Filter updated:', e.detail);
-            if (e.detail?.filter?.name === 'payment_amount') {
-                e.detail.filter.value = e.detail.filter.value.replace(/[\s,]/g, '');
-                console.log('Cleaned payment_amount:', e.detail.filter.value);
-            }
-            setTimeout(parsePaymentAmounts, 500); // Затримка для рендерингу
+            let config = getConfig();
+            // document.dispatchEvent(new CustomEvent('datatable:setConfig', { detail: config }));
+            // if (e.detail?.filter?.name === 'payment_amount') {
+            //     e.detail.filter.value = e.detail.filter.value.replace(/[\s,]/g, '');
+            //     console.log('Cleaned payment_amount:', e.detail.filter.value);
+            // }
+            // setTimeout(parsePaymentAmounts, 500); // Затримка для рендерингу
         });
 
         // Ініціалізація
-        // console.log('Triggering datatable:setConfig with config:', config);
-        document.dispatchEvent(new CustomEvent('datatable:setConfig', { detail: config }));
-        // Виклик reload для першого завантаження
-        document.dispatchEvent(new CustomEvent('datatable:reload'));
+
+        // Оновлення даних при зміні office_type
+        officeTypeSelect.addEventListener('change', () => {
+            // console.log('change');
+            config.requestParams.office_type = getOfficeType();
+            document.dispatchEvent(new CustomEvent('datatable:setConfig', { detail: config }));
+        });
 
         document.addEventListener('click', (e) => {
             const operation_table = document.querySelector('#datatable');
@@ -356,17 +393,19 @@ Yii::$app->params['breadCrumbs'] = [
                 });
             }
         });
+        // console.log('Old config:', config);
+        document.dispatchEvent(new CustomEvent('datatable:setConfig', {detail: config}));
+        // document.dispatchEvent(new CustomEvent('datatable:reload'));
     };
-
-
 
     document.addEventListener('DOMContentLoaded', () => {
         // console.log('DOM fully loaded');
         init();
     });
-
     window.addEventListener('load', () => {
-        // console.log('Window fully loaded, DataTableVue:', !!window.DataTableVue);
+        // console.log(document.getElementById('datatable'));
+        // console.log(document);
+        console.log('Window fully loaded, DataTableVue:', !!window.DataTableVue);
     });
 </script>
 
@@ -399,7 +438,7 @@ Yii::$app->params['breadCrumbs'] = [
     .form-control {
         padding: 5px;
         margin: 5px 10px;
-        width: 200px;
+        width: auto;
     }
     .filter-group {
         display: inline-block;
@@ -408,5 +447,19 @@ Yii::$app->params['breadCrumbs'] = [
     .filter-group label {
         display: block;
         font-size: 14px;
+    }
+    .table-controls {
+        label {
+            padding: 5px;
+            margin-left: 10px;
+            font-size: .9rem;
+            color: #555;
+        }
+    }
+    .table-controls label {
+        margin-right: 10px;
+    }
+    .mb-8 {
+        margin-bottom: 1rem !important;
     }
 </style>

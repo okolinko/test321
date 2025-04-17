@@ -7,6 +7,8 @@ use Yii;
 
 class SummaryInfoController extends ApiController
 {
+    use \App\Libs\Yii\Traits\CrudControllerTrait;
+
     protected array $onlyActions = ['List', 'Download'];
 
     protected array $rules = [
@@ -56,29 +58,49 @@ class SummaryInfoController extends ApiController
 
         if (empty($data['order'])) {
             $data['order'] = [
-                'payment_operation_date' => 'desc',
+                'party_name' => 'desc',
             ];
         }
 
-        Yii::debug('Request data: ' . json_encode($data), __METHOD__);
-
+        $officeMap = [
+            'Центральний офіс' => 1,
+            'Всі регіональні осередки' => 2,
+            'Центральний офіс + Всі регіональні осередки' => 3,
+        ];
+        $officeType = isset($data['filters']['office_type']) ? $officeMap[$data['filters']['office_type']] : 3;
+        unset($data['filters']['office_type']);
         [$list, $count] = $manager->find($data);
 
-        $list = array_map(fn($item) => $this->normalizeModelToResponse($item, 'List'), $list);
-
+        $list = array_map(fn($item) => $this->normalizeModelToResponse($item, 'List', $officeType), $list);
+        $list = array_filter($list);
+        $list = array_values($list);
+        $count = count($list);
         // Зведена інформація
+
         unset($data['order']);
-        $data['pager']['size'] = 10000;
-        $summary = $manager->getSummaryInfo($data, false, true) ?? [
-            'payment_type' => $this->getSummaryTypeName($type),
-            'count' => $count,
-            'payment_amount' => 0,
-            'refund_amount' => 0,
-        ];
+//       $data['pager']['size'] = 10000;
+//        $summary = $manager->getSummaryInfo($data, false, true);
+        $summary = $manager->getCurrentSummaryInfo($data, false, false);
+        $summary['count'] =  $count;
+
 
         $summary['payment_type'] = $this->getSummaryTypeName($type);
         $summary['payment_amount'] = !empty($summary['payment_amount']) ? number_format((float) $summary['payment_amount'], 2, ',', ' ') : '0,00';
         $summary['refund_amount'] = !empty($summary['refund_amount']) ? number_format((float) $summary['refund_amount'], 2, ',', ' ') : '0,00';
+
+        if (Yii::$app->getRequest()->get('download')) {
+            $data['download_file_type'] = 'csv';
+            $data['download_file_name'] = 'party_summary_info_' . $type . '.csv';
+            $fieldMap = $this->getFieldMap($typeMap[$type]);
+            $data['columns'] = array_keys($fieldMap);
+            $data['titles'] = array_values($fieldMap);
+            [$list] = $manager->find($data);
+            $list = array_map(fn($item) => $this->normalizeModelToResponse($item, 'Download', $officeType), $list);
+            $list = array_filter($list);
+            $list = array_values($list);
+
+            return $this->_actionList($data, false, true, $list);
+        }
 
         $response = [
             'results' => [
@@ -91,86 +113,62 @@ class SummaryInfoController extends ApiController
         return $response;
     }
 
-    public function actionDownload()
+    /**
+     * @param $string
+     * @return string
+     */
+    public function replaceNumbersWithStars( string $string): string
     {
-        $filters = Yii::$app->getRequest()->get('filters');
-        $data = [
-            'filters' => $filters ? json_decode($filters, true) : [],
-            'pager' => ['size' => 10000],
-        ];
-
-        $manager = Yii::$container->get('party.payment.manager');
-
-        $type = $data['filters']['operation_type'] ?? 'monetary_contributions';
-        $typeMap = [
-            'monetary_contributions' => '3_1',
-            'other_contributions' => '3_2',
-            'state_funding' => '3_3',
-            'other_incomes' => '3_4',
-            'budget_expenses' => '4_1',
-            'outgoing_expenses' => '4_2',
-            'return_expenses' => '4_3',
-            'transfer_expenses' => '4_4',
-        ];
-        if (!isset($typeMap[$type])) {
-            return [
-                'code' => 1,
-                'errors' => ['Невірний тип операції'],
-            ];
-        }
-
-        $data['filters']['group_code'] = $typeMap[$type];
-        unset($data['filters']['operation_type']);
-
-        // Обробка числових значень
-        $numericFields = ['payment_amount', 'refund_amount', 'refund_budget_amount'];
-        foreach ($numericFields as $field) {
-            if (!empty($data['filters'][$field]) && is_string($data['filters'][$field])) {
-                $data['filters'][$field] = str_replace(' ', '', $data['filters'][$field]);
-            }
-        }
-
-        if (empty($data['order'])) {
-            $data['order'] = [
-                'payment_operation_date' => 'desc',
-            ];
-        }
-
-        $data['download_file_type'] = 'csv';
-        $data['download_file_name'] = 'party_summary_info_' . $type . '.csv';
-        $fieldMap = $this->getFieldMap($typeMap[$type]);
-        $data['columns'] = array_keys($fieldMap);
-        $data['titles'] = array_values($fieldMap);
-
-        [$list] = $manager->find($data);
-
-        return $this->_actionList($data, false, true, array_map(fn($item) => $this->normalizeModelToResponse($item, 'Download'), $list));
+        return preg_replace('/\d/', '*', $string);
     }
 
-    protected function normalizeModelToResponse($model, string $type): array
+    /**
+     * @param array $data
+     * @return array
+     */
+    public function replaceConfident(array $data): array
     {
-        $formatter = Yii::$app->getFormatter();
-        $data = $model->getAttributes();
-
-        // Конфіденційні дані
+        // Логіка для відображення (List, View тощо)
         $isConfident = $data['payer_type'] == 'Фізична особа' || strlen($data['payer_code'] ?: '') == 10;
+
         $confidentAttributes = [
             'payer_code',
             'payer_birthday',
             'payer_address',
+            'payment_purpose',
         ];
+
         foreach ($confidentAttributes as $attribute) {
-            $data[$attribute] = $isConfident ? 'Конфіденційна інформація' : ($data[$attribute] ?: '--');
+            if ($attribute == 'payment_purpose' && isset($data[$attribute]) ) {
+                $data[$attribute] = $this->replaceNumbersWithStars($data[$attribute]);
+            } else {
+                $data[$attribute] = $isConfident ? '[конфіденційна інформація]' : $data[$attribute];
+            }
         }
 
-        $isConfident = $data['receiver_type'] == 'Фізична особа' || strlen($data['receiver_code'] ?: '') == 10;
-        $confidentAttributes = [
+        $isConfidentReceiver = $data['receiver_type'] == 'Фізична особа' || strlen($data['receiver_code'] ?: '') == 10;
+        $confidentAttributesReceiver = [
             'receiver_code',
             'receiver_birthday',
             'receiver_address',
         ];
-        foreach ($confidentAttributes as $attribute) {
-            $data[$attribute] = $isConfident ? 'Конфіденційна інформація' : ($data[$attribute] ?: '--');
+
+        foreach ($confidentAttributesReceiver as $attribute) {
+            $data[$attribute] = $isConfidentReceiver ? '[конфіденційна інформація]' : $data[$attribute];
+        }
+
+        return $data;
+    }
+
+    protected function normalizeModelToResponse($model, string $type, $officeType = 3)
+    {
+        $formatter = Yii::$app->getFormatter();
+        $data = $model->getAttributes();
+        $data = $this->replaceConfident($data);
+        if ($officeType == 2 && $data['office_id'] === null) {
+            return [];
+        } elseif ($officeType == 1 && $data['office_id'] !== null) {
+            return [];
         }
 
         // Форматування для відображення
@@ -193,10 +191,10 @@ class SummaryInfoController extends ApiController
         $partyInfo = $model->getPartyId() ? $this->partyCache[$model->getPartyId()] : null;
         $officeInfo = $model->getOfficeId() ? $this->partyCache[$model->getOfficeId()] : null;
 
-        $data['party_name'] = $partyInfo?->getName() ?: '--';
-        $data['party_code'] = $partyInfo?->getCode() ?: '--';
-        $data['office_name'] = $officeInfo?->getName() ?: '--';
-        $data['office_code'] = $officeInfo?->getCode() ?: '--';
+        $data['party_name'] = $partyInfo?->getName() ?: null;
+        $data['party_code'] = $partyInfo?->getCode() ?: null;
+        $data['office_name'] = $officeInfo?->getName() ?: null;
+        $data['office_code'] = $officeInfo?->getCode() ?: null;
 
         // Форматування для завантаження
         if ($type === 'Download') {
